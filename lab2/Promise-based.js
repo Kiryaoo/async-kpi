@@ -6,18 +6,18 @@ function asyncMap(arr, asyncCallback) {
         arr.forEach((item, index) => {
             asyncCallback(item, index, arr)
                 .then((value) => {
-                    result[index] = value; // Зберігаємо результат у правильному порядку
+                    result[index] = value;
                     completed++;
 
-                    // Якщо всі обіцянки завершені, резолвимо результат
+
                     if (completed === arr.length) {
                         resolve(result);
                     }
                 })
-                .catch(reject); // Якщо одна обіцянка провалилася, відразу відхиляємо всю операцію
+                .catch(reject);
         });
 
-        // Якщо масив порожній, одразу повертаємо порожній результат
+
         if (arr.length === 0) {
             resolve([]);
         }
@@ -35,7 +35,7 @@ function doubleAsync(num) {
     });
 }
 
-// Використання asyncMap без Promise.all
+
 asyncMap(numbers, doubleAsync)
     .then((result) => {
         console.log("Result:", result); // [2, 4, 6, 8]
