@@ -1,27 +1,69 @@
-async function promiseMap(arr, callback) {
-    const promises = arr.map(async (element, index) => {
-        return callback(element, index);
+function asyncMap(arr, asyncCallback, signal) {
+    return new Promise((resolve, reject) => {
+        const result = [];
+        let completed = 0;
+
+        if (signal && signal.aborted) {
+            return reject(new Error("Operation aborted"));
+        }
+
+        const onAbort = () => reject(new Error("Operation aborted"));
+
+        // Встановлюємо обробник скасування, якщо переданий сигнал
+        signal?.addEventListener("abort", onAbort);
+
+        arr.forEach((item, index) => {
+            asyncCallback(item, index, arr)
+                .then((value) => {
+                    if (signal?.aborted) return;
+                    result[index] = value;
+                    completed++;
+
+                    if (completed === arr.length) {
+                        signal?.removeEventListener("abort", onAbort);
+                        resolve(result);
+                    }
+                })
+                .catch((err) => {
+                    signal?.removeEventListener("abort", onAbort);
+                    reject(err);
+                });
+        });
+
+        // Якщо масив порожній, одразу завершуємо
+        if (arr.length === 0) {
+            signal?.removeEventListener("abort", onAbort);
+            resolve([]);
+        }
     });
-
-    return Promise.all(promises);
 }
-
 
 const numbers = [1, 2, 3, 4];
 
-async function doublePromise(num, index) {
-    return new Promise((resolve) => {
-        setTimeout(() => {
+function doubleAsync(num, signal) {
+    return new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
             resolve(num * 2);
         }, 1000);
+
+        signal?.addEventListener("abort", () => {
+            clearTimeout(timeout);
+            reject(new Error(`Operation aborted for number ${num}`));
+        });
     });
 }
 
-(async () => {
-    try {
-        const result = await promiseMap(numbers, doublePromise);
-        console.log(result); // Виведе [2, 4, 6, 8]
-    } catch (error) {
-        console.error(error);
-    }
-})();
+const controller = new AbortController();
+
+asyncMap(numbers, (num) => doubleAsync(num, controller.signal), controller.signal)
+    .then((result) => {
+        console.log("Result:", result);
+    })
+    .catch((err) => {
+        console.error("Error:", err.message);
+    });
+
+
+setTimeout(() => {
+    controller.abort();
+}, 1500);
