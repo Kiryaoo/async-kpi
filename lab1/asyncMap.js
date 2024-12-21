@@ -1,33 +1,46 @@
-function asyncMap(arr, callback) {
-    let result = []; // Array to store the transformed values.
-    let completed = 0;
+const CallbackBasedMap = (userArray, transformFunction, finalCallback) => {
+    const mappedArray = [];
+    let hasErrorOccurred = false;
+    let elementsLeft = userArray.length;
 
-    // Helper function to handle the transformed value.
-    function handleResult(index, transformedValue) {
-        result[index] = transformedValue;
-        completed++;
+    for (let i = 0; i < userArray.length; i++) {
+        transformFunction(userArray[i], (error, transformedValue) => {
+            if (hasErrorOccurred) {
+                return;
+            }
 
+            if (error) {
+                finalCallback(error, null);
+                hasErrorOccurred = true;
+                return;
+            }
 
-        if (completed === arr.length) {
-            console.log(result);
-        }
+            mappedArray[i] = transformedValue;
+
+            elementsLeft--;
+            if (elementsLeft === 0) {
+                finalCallback(null, mappedArray);
+            }
+        });
     }
+};
 
-    for (let i = 0; i < arr.length; i++) {
-
-        callback(arr[i], i, handleResult.bind(null, i));
-    }
-}
-
-// Example
+// Приклади використання
 const numbers = [1, 2, 3, 4];
 
-function doubleAsync(num, index, callback) {
-    // Simulate an asynchronous operation
-    setTimeout(() => {
-        callback(num * 2);
-    }, 1000);
-}
 
-
-asyncMap(numbers, doubleAsync);
+CallbackBasedMap(
+    numbers,
+    (num, cb) => {
+        setTimeout(() => {
+            cb(null, num * 2);
+        }, 1000);
+    },
+    (error, mapped) => {
+        if (error) {
+            console.log("Error occurred:", error);
+        } else {
+            console.log("Mapped Array:", mapped);
+        }
+    }
+);
