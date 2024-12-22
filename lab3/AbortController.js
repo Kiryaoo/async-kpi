@@ -1,69 +1,52 @@
-function asyncMap(arr, asyncCallback, signal) {
-    return new Promise((resolve, reject) => {
-        const result = [];
-        let completed = 0;
+const promiseBasedMap = (array, userSignal, transformFunc) => {
+    const resultArray = new Array(array.length); // Зберігаємо результати у масив
 
-        if (signal && signal.aborted) {
-            return reject(new Error("Operation aborted"));
-        }
-
-        const onAbort = () => reject(new Error("Operation aborted"));
-
-        // Встановлюємо обробник скасування, якщо переданий сигнал
-        signal?.addEventListener("abort", onAbort);
-
-        arr.forEach((item, index) => {
-            asyncCallback(item, index, arr)
-                .then((value) => {
-                    if (signal?.aborted) return;
-                    result[index] = value;
-                    completed++;
-
-                    if (completed === arr.length) {
-                        signal?.removeEventListener("abort", onAbort);
-                        resolve(result);
-                    }
-                })
-                .catch((err) => {
-                    signal?.removeEventListener("abort", onAbort);
-                    reject(err);
-                });
-        });
-
-        // Якщо масив порожній, одразу завершуємо
-        if (arr.length === 0) {
-            signal?.removeEventListener("abort", onAbort);
-            resolve([]);
-        }
+    const promises = array.map((item, index) => {
+        return Promise.resolve(transformFunc(item, userSignal))
+            .then((result) => {
+                resultArray[index] = result; // Зберігаємо результат у відповідному індексі
+            });
     });
-}
+
+    return Promise.all(promises)
+        .then(() => resultArray); // Повертаємо заповнений масив результатів
+};
+
+// Test cases
+const controller = new AbortController();
+const mySignal = controller.signal;
 
 const numbers = [1, 2, 3, 4];
 
-function doubleAsync(num, signal) {
-    return new Promise((resolve, reject) => {
-        const timeout = setTimeout(() => {
-            resolve(num * 2);
-        }, 1000);
+// Завершуємо операцію через 1500 мс
+setTimeout(() => controller.abort(), 1500);
 
-        signal?.addEventListener("abort", () => {
-            clearTimeout(timeout);
-            reject(new Error(`Operation aborted for number ${num}`));
+promiseBasedMap(
+    numbers,
+    mySignal,
+    (num, signal) => {
+        return new Promise((resolve, reject) => {
+            if (signal.aborted) {
+                reject(new Error("Aborted"));
+            }
+
+            const onAbort = () => {
+                clearTimeout(timeout);
+                reject(new Error(`Operation aborted for number ${num}`));
+            };
+
+            signal.addEventListener("abort", onAbort);
+
+            const timeout = setTimeout(() => {
+                signal.removeEventListener("abort", onAbort);
+                resolve(num * 2); // Подвоюємо значення
+            }, 1000);
         });
-    });
-}
-
-const controller = new AbortController();
-
-asyncMap(numbers, (num) => doubleAsync(num, controller.signal), controller.signal)
+    }
+)
     .then((result) => {
-        console.log("Result:", result);
+        console.log("Mapped result:", result); // Наприклад, [2, 4] якщо операція була скасована
     })
-    .catch((err) => {
-        console.error("Error:", err.message);
+    .catch((error) => {
+        console.error("Error:", error.message); // Виводить помилку у разі аборту або іншої проблеми
     });
-
-
-setTimeout(() => {
-    controller.abort();
-}, 1500);
