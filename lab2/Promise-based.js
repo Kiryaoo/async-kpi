@@ -1,89 +1,42 @@
-const promiseBasedMap = (array, mapFunc) => {
-    return new Promise((resolve, reject) => {
-        const mappedArray = [];
-        let completed = 0;
-
-        if (array.length === 0) {
-            resolve([]);
-            return;
+const promiseBasedMap = async (array, mapFunc) => {
+    const mappedArray = [];
+    for (let i = 0; i < array.length; i++) {
+        try {
+            mappedArray[i] = await mapFunc(array[i]);
+        } catch (error) {
+            throw error;
         }
-
-        for (let i = 0; i < array.length; i++) {
-            const item = array[i];
-
-            Promise.resolve(mapFunc(item))
-                .then((result) => {
-                    mappedArray[i] = result;
-                })
-                .catch((error) => {
-                    reject(error);
-                })
-                .finally(() => {
-                    completed++;
-                    if (completed === array.length) {
-                        resolve(mappedArray);
-                    }
-                });
-        }
-    });
+    }
+    return mappedArray;
 };
-
 
 const firstArray = [1, 2, 3, 4, 5, 6];
 const secondArray = ['a', 'o', 'b', 'w', 'h', 'z'];
 
-
-promiseBasedMap(
-    firstArray,
-    (elem) => {
-        return new Promise((resolve) => {
-            setTimeout(() => {
-                resolve(elem * 2);
-            }, 1000);
+(async () => {
+    try {
+        const result1 = await promiseBasedMap(firstArray, async (elem) => {
+            await new Promise((resolve) => setTimeout(resolve, 100));
+            return elem * 2;
         });
-    }
-)
-    .then((result) => {
-        console.log(result);
-    })
-    .catch((error) => {
-        console.error(error);
-    });
+        console.log(result1);
 
-promiseBasedMap(
-    secondArray,
-    (elem) => {
-        return new Promise((resolve) => {
-            setTimeout(() => {
-                resolve(elem.toUpperCase()); // Перетворюємо кожен елемент на верхній регістр
-            }, 1000);
+        const result2 = await promiseBasedMap(secondArray, async (elem) => {
+            await new Promise((resolve) => setTimeout(resolve, 100));
+            return elem.toUpperCase();
         });
-    }
-)
-    .then((result) => {
-        console.log(result);
-    })
-    .catch((error) => {
-        console.error(error);
-    });
+        console.log(result2);
 
-promiseBasedMap(
-    firstArray,
-    (elem) => {
-        return new Promise((resolve, reject) => {
-            setTimeout(() => {
-                if (elem % 2 === 0) {
-                    resolve(elem * 3);
-                } else {
-                    reject(new Error("Odd numbers are not allowed"));
-                }
-            }, 1000);
+        const result3 = await promiseBasedMap(firstArray, async (elem) => {
+            await new Promise((resolve) => setTimeout(resolve, 100));
+            if (elem % 2 === 0) {
+                return elem * 3;
+            } else {
+                throw new Error("Odd numbers are not allowed");
+            }
         });
-    }
-)
-    .then((result) => {
-        console.log(result);
-    })
-    .catch((error) => {
+        console.log(result3);
+    } catch (error) {
         console.error(error.message);
-    });
+    }
+})();
